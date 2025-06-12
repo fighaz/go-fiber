@@ -6,6 +6,7 @@ import (
 	"go-fiber/model/entity"
 	"go-fiber/model/request"
 	"go-fiber/model/response"
+	"go-fiber/utils"
 	"log"
 
 	"github.com/go-playground/validator"
@@ -19,6 +20,7 @@ func GetAllUser(ctx *fiber.Ctx) error {
 	if result.Error != nil {
 		log.Println(result.Error)
 	}
+
 	return ctx.JSON(users)
 }
 
@@ -38,13 +40,6 @@ func Createuser(ctx *fiber.Ctx) error {
 			"error":   errValidate.Error(),
 		})
 	}
-	newUser := entity.User{
-		Name:    user.Name,
-		Email:   user.Email,
-		Address: user.Address,
-		Phone:   user.Phone,
-	}
-
 	// Check Email
 	if user.Email != "" {
 		check := checkEmail(user.Email)
@@ -54,6 +49,22 @@ func Createuser(ctx *fiber.Ctx) error {
 			})
 		}
 	}
+	// Hash Password
+	HashPassword, err := utils.HashPassword(user.Password)
+	if err != nil {
+		log.Println(err)
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal server error",
+		})
+	}
+	newUser := entity.User{
+		Name:     user.Name,
+		Email:    user.Email,
+		Address:  user.Address,
+		Phone:    user.Phone,
+		Password: HashPassword,
+	}
+
 	errCreate := database.DB.Create(&newUser).Error
 
 	if errCreate != nil {
