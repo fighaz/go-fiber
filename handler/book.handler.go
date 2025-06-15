@@ -5,7 +5,6 @@ import (
 	"go-fiber/database"
 	"go-fiber/model/entity"
 	"go-fiber/model/request"
-	"log"
 
 	"github.com/go-playground/validator"
 	"github.com/gofiber/fiber/v2"
@@ -29,28 +28,21 @@ func CreateBook(ctx *fiber.Ctx) error {
 	}
 
 	// Handle File Upload
-	file, errFile := ctx.FormFile("cover")
+	var fileNameString string
+	fileName := ctx.Locals("fileName")
 
-	if errFile != nil {
-		log.Println("Error file = ", errFile)
-	}
-
-	var fileName string
-
-	if file != nil {
-		fileName = file.Filename
-
-		errSaveFile := ctx.SaveFile(file, fmt.Sprintf("./public/asset/%s", fileName))
-
-		if errSaveFile != nil {
-			log.Println("Failed saving file into directory")
-		}
+	if fileName == nil {
+		return ctx.Status(422).JSON(fiber.Map{
+			"message": "Image cover is required",
+		})
+	} else {
+		fileNameString = fmt.Sprintf("%v", fileName)
 	}
 
 	newBook := entity.Book{
 		Title:  book.Title,
 		Author: book.Author,
-		Cover:  fileName,
+		Cover:  fileNameString,
 	}
 
 	errCreate := database.DB.Create(&newBook).Error
