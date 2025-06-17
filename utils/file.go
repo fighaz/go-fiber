@@ -1,9 +1,13 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"mime/multipart"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -20,13 +24,25 @@ func HandleSingleFile(ctx *fiber.Ctx) error {
 	var fileName *string
 
 	if file != nil {
+		// Validasi Tipe File
+		errCheckContentType := CheckContentType(file, "image/jpg", "image/png", "image/jpeg")
+		if errCheckContentType != nil {
+			return ctx.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"message": errCheckContentType.Error(),
+			})
+		}
+		// Save File
 		fileName = &file.Filename
-
+		currentTime := time.Now().Format(time.RFC3339)
+		extFile := filepath.Ext(*fileName)
+		generatedFileName := fmt.Sprintf("image-%s%s", currentTime, extFile)
+		fileName = &generatedFileName
 		errSaveFile := ctx.SaveFile(file, fmt.Sprintf("./public/asset/%s", *fileName))
 
 		if errSaveFile != nil {
 			log.Println("Failed saving file into directory")
 		}
+
 	}
 
 	if fileName != nil {
@@ -52,6 +68,14 @@ func HandleMultipleFile(ctx *fiber.Ctx) error {
 		var fileName string
 
 		if file != nil {
+			// Validasi Tipe File
+			errCheckContentType := CheckContentType(file, "image/jpg", "image/png", "image/jpeg")
+			if errCheckContentType != nil {
+				return ctx.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+					"message": errCheckContentType.Error(),
+				})
+			}
+
 			fileName = fmt.Sprintf("%d-%s", i, file.Filename)
 
 			errSaveFile := ctx.SaveFile(file, fmt.Sprintf("./public/asset/%s", fileName))
@@ -86,4 +110,19 @@ func HandleRemoveFile(filename string, path ...string) error {
 	}
 
 	return nil
+}
+
+func CheckContentType(file *multipart.FileHeader, contentTypes ...string) error {
+	if len(contentTypes) > 0 {
+		for _, contentType := range contentTypes {
+			contentTypeFile := file.Header.Get("Content-Type")
+			if contentTypeFile == contentType {
+				return nil
+			}
+		}
+		return errors.New("Type File Not Allowed")
+
+	} else {
+		return errors.New("Content Not Found ")
+	}
 }
